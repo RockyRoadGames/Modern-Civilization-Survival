@@ -1,0 +1,27 @@
+﻿# Generated Minecraft files / runtime folders
+Server/world/
+Server/logs/
+Server/crash-reports/
+Server/config/
+Server/defaultconfigs/
+Server/versions/
+Server/libraries/
+Server/neoforge-*-installer.jar
+Server/*.log
+
+# Client runtime data
+Client/logs/
+Client/crash-reports/
+Client/config/
+Client/versions/
+
+# Never commit binary mod distributions
+**/*.jar
+**/*.mrpack
+**/*.zip
+
+# OS/editor
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/

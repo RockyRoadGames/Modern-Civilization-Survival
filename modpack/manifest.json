@@ -1,0 +1,54 @@
+﻿{
+    "project":  "Modern Civilization Survival",
+    "minecraft":  "1.21.1",
+    "loader":  "neoforge",
+    "java":  "21",
+    "versionPolicy":  "Latest Modrinth release matching Minecraft + loader, then recursively resolve required Modrinth dependencies. Exact results are locked.",
+    "core":  [
+                 "create",
+                 "create-new-age",
+                 "createaddition",
+                 "create-diesel-generators",
+                 "create-tfmg",
+                 "create-connected",
+                 "copycats",
+                 "create-deco",
+                 "create-design-n-decor",
+                 "create-power-loader",
+                 "create-steam-n-rails-1.21.1",
+                 "numismatics",
+                 "create-numismatics-utils",
+                 "ender-mail-reborn",
+                 "refined-storage",
+                 "create-ore-excavation",
+                 "farmers-delight",
+                 "create-food",
+                 "handcrafted",
+                 "supplementaries",
+                 "macaws-doors",
+                 "macaws-windows",
+                 "macaws-lights-and-lamps",
+                 "kubejs",
+                 "emi",
+                 "jade",
+                 "modernfix"
+             ],
+    "experimental":  [
+                         "create_factory_logistics",
+                         "pneumaticcraft-repressurized",
+                         "chemica",
+                         "cc-tweaked"
+                     ],
+    "vehicles":  {
+                     "automobility":  "automobility",
+                     "ultimateCarMod":  "ultimate-car-mod"
+                 },
+    "clientOnly":  [
+                       "embeddium",
+                       "immediatelyfast",
+                       "entityculling",
+                       "dynamic-fps",
+                       "xaeros-minimap",
+                       "xaeros-world-map"
+                   ]
+}
