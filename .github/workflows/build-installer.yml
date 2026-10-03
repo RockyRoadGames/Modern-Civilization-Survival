@@ -1,0 +1,39 @@
+name: Build Modern Civilization Installer
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build
+        run: dotnet publish src/ModernCivilizationInstaller/ModernCivilizationInstaller.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+
+      - name: Local self-test
+        run: .\publish\Modern-Civilization-Installer.exe self-test
+
+      - name: Live Modrinth validation
+        run: .\publish\Modern-Civilization-Installer.exe validate
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Modern-Civilization-Installer-win-x64
+          path: publish/Modern-Civilization-Installer.exe
+          if-no-files-found: error
+          retention-days: 14
