@@ -306,8 +306,15 @@ if (-not $repoExists) {
     if ($LASTEXITCODE -ne 0) { throw "GitHub repository creation failed." }
 }
 
-$origin = (& git remote get-url origin 2>$null)
-$hasOrigin = ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace(($origin -as [string])))
+$origin = $null
+$gitOriginExit = 0
+try {
+    $origin = (& git remote get-url origin 2>$null)
+    $gitOriginExit = $LASTEXITCODE
+} catch {
+    $gitOriginExit = 1
+}
+$hasOrigin = ($gitOriginExit -eq 0 -and -not [string]::IsNullOrWhiteSpace(($origin -as [string])))
 if (-not $hasOrigin) {
     & git remote add origin $repoUrl | Out-Host
 } elseif ($origin -ne $repoUrl) {
