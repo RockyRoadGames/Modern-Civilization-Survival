@@ -378,24 +378,37 @@ internal static class Program
         public async Task<List<ModRecord>> ResolveAsync(IEnumerable<string> slugs, string requestedScope = "both")
         {
             var result = new Dictionary<string, ModRecord>(StringComparer.Ordinal);
-            var queue = new Queue<(string slug, string scope)>(slugs.Select(x => (x, requestedScope)));
+            var queue = new Queue<(string? slug, string scope, string? exactVersionId)>(slugs.Select(x => ((string?)x, requestedScope, (string?)null)));
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             while (queue.Count > 0)
             {
-                var (slug, scope) = queue.Dequeue();
-                if (!seen.Add(slug + "|" + scope))
+                var (slug, scope, exactVersionId) = queue.Dequeue();
+                var seenKey = (exactVersionId ?? slug ?? "<unknown>") + "|" + scope;
+                if (!seen.Add(seenKey))
                     continue;
 
-                Console.WriteLine($"Resolving {slug} [{scope}]...");
-                var project = await GetProject(slug);
-                var version = (await GetProjectVersions(slug))
-                    .Where(v => v.VersionType.Equals("release", StringComparison.OrdinalIgnoreCase))
-                    .Where(v => v.GameVersions.Contains(Minecraft))
-                    .Where(v => v.Loaders.Any(l => l.Equals(Loader, StringComparison.OrdinalIgnoreCase)))
-                    .OrderByDescending(v => ParseDate(v.DatePublished))
-                    .FirstOrDefault()
-                    ?? throw new InvalidOperationException($"No release-channel {Minecraft} {Loader} version found for {project.Title}.");
+                VersionInfo version;
+                ProjectInfo project;
+
+                if (!string.IsNullOrWhiteSpace(exactVersionId))
+                {
+                    version = await GetVersionById(exactVersionId!);
+                    project = await GetProject(version.ProjectId);
+                    ValidateVersion(version, project.Title);
+                }
+                else
+                {
+                    Console.WriteLine($"Resolving {slug} [{scope}]...");
+                    project = await GetProject(slug!);
+                    version = (await GetProjectVersions(slug!))
+                        .Where(v => v.VersionType.Equals("release", StringComparison.OrdinalIgnoreCase))
+                        .Where(v => v.GameVersions.Contains(Minecraft))
+                        .Where(v => v.Loaders.Any(l => l.Equals(Loader, StringComparison.OrdinalIgnoreCase)))
+                        .OrderByDescending(v => ParseDate(v.DatePublished))
+                        .FirstOrDefault()
+                        ?? throw new InvalidOperationException($"No release-channel {Minecraft} {Loader} version found for {project.Title}.");
+                }
 
                 var file = version.Files
                     .Where(f => f.Filename.EndsWith(".jar", StringComparison.OrdinalIgnoreCase))
@@ -416,7 +429,7 @@ internal static class Program
                     Sha512 = file.Hashes.GetValueOrDefault("sha512") ?? "",
                     ClientSide = version.ClientSide,
                     ServerSide = version.ServerSide,
-                    Scope = scope
+                    Scope = MergeScope(scope, InferScope(version))
                 };
 
                 if (result.TryGetValue(version.Id, out var existing))
@@ -430,11 +443,12 @@ internal static class Program
                     {
                         var depVersion = await GetVersionById(dep.VersionId!);
                         var depScope = MergeScope(scope, InferScope(depVersion));
-                        queue.Enqueue((await GetSlugFromProjectId(depVersion.ProjectId), depScope));
+                        // Preserve the dependency's exact version_id. Do not silently replace it with a newer project release.
+                        queue.Enqueue((null, depScope, dep.VersionId));
                     }
                     else if (!string.IsNullOrWhiteSpace(dep.ProjectId))
                     {
-                        queue.Enqueue((await GetSlugFromProjectId(dep.ProjectId!), scope));
+                        queue.Enqueue((await GetSlugFromProjectId(dep.ProjectId!), scope, null));
                     }
                 }
             }
@@ -447,13 +461,26 @@ internal static class Program
 
         private static string InferScope(VersionInfo v)
         {
+            // Prefer client-only when the client requires the mod but the server does not.
             if (v.ClientSide.Equals("required", StringComparison.OrdinalIgnoreCase) &&
-                v.ServerSide.Equals("unsupported", StringComparison.OrdinalIgnoreCase))
+                (v.ServerSide.Equals("unsupported", StringComparison.OrdinalIgnoreCase) ||
+                 v.ServerSide.Equals("optional", StringComparison.OrdinalIgnoreCase)))
                 return "client";
+
             if (v.ServerSide.Equals("required", StringComparison.OrdinalIgnoreCase) &&
-                v.ClientSide.Equals("unsupported", StringComparison.OrdinalIgnoreCase))
+                (v.ClientSide.Equals("unsupported", StringComparison.OrdinalIgnoreCase) ||
+                 v.ClientSide.Equals("optional", StringComparison.OrdinalIgnoreCase)))
                 return "server";
+
             return "both";
+        }
+
+        private static void ValidateVersion(VersionInfo v, string title)
+        {
+            if (!v.GameVersions.Contains(Minecraft))
+                throw new InvalidOperationException($"Pinned dependency {title} {v.VersionNumber} does not support Minecraft {Minecraft}.");
+            if (!v.Loaders.Any(l => l.Equals(Loader, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException($"Pinned dependency {title} {v.VersionNumber} does not support {Loader}.");
         }
 
         private static string MergeScope(string a, string b)
